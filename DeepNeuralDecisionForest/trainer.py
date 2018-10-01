@@ -10,7 +10,7 @@ import main
 import sys
 import os
 import numpy as np
-
+from model import DeepNeuralDecisionForest
 parser = main.parser
 GeneratorDevice = main.GeneratorDevice
 DiscriminatorDevice = main.DiscriminatorDevice
@@ -41,12 +41,6 @@ def get_word_from_vec(vec, n=10):
     return sorted(all_dist, key=lambda t: t[1])[:n]
 
 
-
-# Training settings
-
-
-
-
 ################ Definition ######################### 
 DEPTH = 3  # Depth of a tree
 N_LEAF = 2 ** (DEPTH + 1)  # Number of leaf node
@@ -64,6 +58,9 @@ model = DeepNeuralDecisionForest(p_keep_conv = p_conv_keep, p_keep_hidden = p_fu
 model.cuda()
 
 optimizer = optim.RMSprop(model.parameters(), lr=.001) 
+
+train_loader = None
+test_loader = None
 
 def train(epoch):
     model.train()
@@ -98,5 +95,3 @@ def test(epoch):
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
-train(epoch)
-test(epoch)
