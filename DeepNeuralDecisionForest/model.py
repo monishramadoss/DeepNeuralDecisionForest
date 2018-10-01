@@ -1,4 +1,4 @@
-﻿
+﻿# https://github.com/jingxil/Neural-Decision-Forests/blob/master/ndf.py
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
