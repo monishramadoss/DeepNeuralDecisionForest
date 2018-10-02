@@ -30,7 +30,6 @@ validateData = args.validateData
 testData = args.testData
 
 dtype = torch.float32
-
 glove = vocab.GloVe(name='840B', dim=300)
 
 def get_glove_vec(word):
@@ -55,14 +54,12 @@ model = Forest(n_tree=N_TREE, tree_depth=DEPTH, n_in_feature=N_LEAF, tree_featur
 model.cuda()
 optimizer = optim.RMSprop(model.parameters(), lr=.001) 
 
-datanpFile = './__pycache__'
-
 # set up fields
 TEXT = data.Field(lower=True, include_lengths=True, batch_first=True)
 LABEL = data.Field(sequential=False)
 
 # make splits for data
-train, test = datasets.TREC.splits(TEXT, LABEL)
+train, test = datasets.SST.splits(TEXT, LABEL, root='./.vector_cache')
 
 # build the vocabulary
 TEXT.build_vocab(train, vectors=glove)
@@ -84,13 +81,10 @@ def train(epochs):
             loss = F.nll_loss((output), target)
             loss.backward()
             optimizer.step()
-            if batch_idx % args.log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader), loss.data[0]))
+            if batch_idx % 50 == 0:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(epoch, batch_idx * len(data), len(train_loader.dataset), 100. * batch_idx / len(train_loader), loss.data[0]))
 
 def test():
-
     test_loss = 0
     correct = 0
     for data, target in test_loader:
@@ -100,10 +94,7 @@ def test():
         test_loss += F.nll_loss(output, target).data[0]
         pred = output.data.max(1)[1] # get the index of the max log-probability
         correct += pred.eq(target.data).cpu().sum()
-
     test_loss = test_loss
     test_loss /= len(test_loader) # loss function already averages over batch size
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(test_loss, correct, len(test_loader.dataset), 100. * correct / len(test_loader.dataset)))
 
