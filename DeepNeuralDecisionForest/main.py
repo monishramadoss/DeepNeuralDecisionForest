@@ -82,5 +82,6 @@ import trainer
 
 
 if __name__ == "__main__":
-        
+    trainer.train(10)
+    trainer.test()
     exit(0)

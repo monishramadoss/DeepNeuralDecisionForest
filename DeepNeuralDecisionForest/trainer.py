@@ -10,7 +10,7 @@ import main
 import sys
 import os
 import numpy as np
-from model import DeepNeuralDecisionForest
+from model import Forest
 parser = main.parser
 GeneratorDevice = main.GeneratorDevice
 DiscriminatorDevice = main.DiscriminatorDevice
@@ -50,35 +50,47 @@ N_BATCH = 64
 # network hyperparameters
 p_conv_keep = 0.8
 p_full_keep = 0.5
-epoch = 10
     
-model = DeepNeuralDecisionForest(p_keep_conv = p_conv_keep, p_keep_hidden = p_full_keep, n_leaf= N_LEAF, n_label= N_LABEL, n_tree= N_TREE, n_depth= DEPTH)
-
-#model = Net()
+model = Forest(n_tree=N_TREE, tree_depth=DEPTH, n_in_feature=N_LEAF, tree_feature_rate=p_conv_keep, n_class=N_LABEL, jointly_training=True)
 model.cuda()
-
 optimizer = optim.RMSprop(model.parameters(), lr=.001) 
 
-train_loader = None
-test_loader = None
+datanpFile = './__pycache__'
 
-def train(epoch):
-    model.train()
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.cuda(), target.cuda()
-        data, target = Variable(data), Variable(target)
-        optimizer.zero_grad()
-        output = model(data)
-        loss = F.nll_loss((output), target)
-        loss.backward()
-        optimizer.step()
-        if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.data[0]))
+# set up fields
+TEXT = data.Field(lower=True, include_lengths=True, batch_first=True)
+LABEL = data.Field(sequential=False)
 
-def test(epoch):
-    model.eval()
+# make splits for data
+train, test = datasets.TREC.splits(TEXT, LABEL)
+
+# build the vocabulary
+TEXT.build_vocab(train, vectors=glove)
+LABEL.build_vocab(train)
+
+# make iterator for splits
+train_iter, test_iter = data.BucketIterator.splits((train, test), batch_size=N_BATCH, device=0)
+train_loader = train_iter
+test_loader = test_iter
+
+
+def train(epochs):
+    for epoch in range(epochs):
+        for batch_idx, (data, target) in enumerate(train_loader):      
+            data, target = data.cuda(), target.cuda()
+            data, target = Variable(data), Variable(target)
+            optimizer.zero_grad()
+            output = model(data)
+            loss = F.nll_loss((output), target)
+            loss.backward()
+            optimizer.step()
+            if batch_idx % args.log_interval == 0:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, batch_idx * len(data), len(train_loader.dataset),
+                    100. * batch_idx / len(train_loader), loss.data[0]))
+
+def test():
+
     test_loss = 0
     correct = 0
     for data, target in test_loader:

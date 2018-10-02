@@ -119,4 +119,4 @@ class NeuralDecisionForest(nn.Module):
         out = self.feature_layer(x)
         out = out.view(x.size()[0],-1)
         out = self.forest(out)
-return out
+        return out
