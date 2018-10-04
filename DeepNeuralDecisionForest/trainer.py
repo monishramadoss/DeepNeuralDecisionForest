@@ -4,8 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.init as init
 import torch.nn.functional as F
-from torchtext import vocab
-
+from torchtext import vocab, data, datasets
+from torch.autograd import Variable
 import main
 import sys
 import os
@@ -43,9 +43,8 @@ def get_word_from_vec(vec, n=10):
 ################ Definition ######################### 
 DEPTH = 3  # Depth of a tree
 N_LEAF = 2 ** (DEPTH + 1)  # Number of leaf node
-N_LABEL = 10  # Number of classes
+N_LABEL = 10  # Number of classe s
 N_TREE = 10 # Number of trees (ensemble)
-N_BATCH = 64
 # network hyperparameters
 p_conv_keep = 0.8
 p_full_keep = 0.5
@@ -59,23 +58,25 @@ TEXT = data.Field(lower=True, include_lengths=True, batch_first=True)
 LABEL = data.Field(sequential=False)
 
 # make splits for data
-train, test = datasets.SST.splits(TEXT, LABEL, root='./.vector_cache')
+train, val, test = datasets.SST.splits(TEXT, LABEL, root='./.vector_cache')
 
 # build the vocabulary
 TEXT.build_vocab(train, vectors=glove)
 LABEL.build_vocab(train)
 
 # make iterator for splits
-train_iter, test_iter = data.BucketIterator.splits((train, test), batch_size=N_BATCH, device=0)
+train_iter, test_iter = data.BucketIterator.splits((train, test), batch_size=batchSize, device=0)
 train_loader = train_iter
 test_loader = test_iter
 
 
 def train(epochs):
     for epoch in range(epochs):
-        for batch_idx, (data, target) in enumerate(train_loader):      
-            data, target = data.cuda(), target.cuda()
-            data, target = Variable(data), Variable(target)
+        for i, dataTensor in enumerate(train_loader):  
+            data = dataTensor.text[0]
+            target = dataTensor.label.data
+            data  = torch.tensor(data, dtype=dtype, device=torch.device('cuda:0'))
+            target = torch.tensor(target, dtype=dtype, device=torch.device('cuda:0'))
             optimizer.zero_grad()
             output = model(data)
             loss = F.nll_loss((output), target)

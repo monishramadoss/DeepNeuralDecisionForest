@@ -39,10 +39,9 @@ class Tree(nn.Module):
 
     def forward(self,x):
        
-        if x.is_cuda and not self.feature_mask.is_cuda:
-            self.feature_mask = self.feature_mask.cuda()
+        self.feature_mask = self.feature_mask.cuda()
 
-        feats = torch.mm(x,self.feature_mask) # ->[batch_size,n_used_feature]
+        feats = torch.mm(x, self.feature_mask) # ->[batch_size,n_used_feature]
         decision = self.decision(feats) # ->[batch_size,n_leaf]
 
         decision = torch.unsqueeze(decision,dim=2)
