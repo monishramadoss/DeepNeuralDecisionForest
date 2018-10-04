@@ -6,7 +6,7 @@ from torch.nn.parameter import Parameter
 from collections import OrderedDict
 import numpy as np
 import torch.nn.functional as F
-
+from functools import reduce
 
 
 class Tree(nn.Module):
@@ -119,3 +119,34 @@ class NeuralDecisionForest(nn.Module):
         out = out.view(x.size()[0],-1)
         out = self.forest(out)
         return out
+
+def torch_kron_prod(a, b):
+    res = torch.einsum('ij,ik->ijk', [a, b])
+    res = torch.reshape(res, [-1, np.prod(res.shape[1:])])
+    return res
+
+def torch_bin(x, cut_points, temp=0.1):
+    D = cut_points.shape[0]
+    W = torch.reshape(torch.linespace(1.0, D + 1.0, D + 1), [1,-1])
+    cut_points , _ = torch.sort(cut_points)
+    b = torch.cumsum(torch.cat([torch.zeros([1]), -cut_points], 0), 0)
+    h = torch.matmul(x, W) + b
+    res = torch.exp(h - torch.max(h))
+    res = res/troch.sum(res, dim=-1, keepdim=True)
+    return h
+
+def nn_decision_tree(x, cut_points_list, leaf_score, temp=0.1):
+    leaf = reduce(torch_kron_prod, map(lambda z: torch_bin(x[:, z[0]:z[0] + 1], z[1], temp), enumerate(cut_points_list)))
+    return torch.matmul(leaf, leaf_score)
+
+class NNForest(nn.Module):
+    def __init__(self, num_cut, num_leaf, num_class):
+        super(NNForest, self).__init__()
+        self.cut_points_list = [torch.rand([i], requires_grad=True) for i in num_cut]
+        num_leaf = np.prod(np.array(num_cut) + 1)
+        self.leaf_score = torch.rand([num_leaf, num_class], requires_grad=True)
+        
+    def forward(self, x):
+        return nn_decision_tree(x, self.cut_points_list, self.leaf_score)
+
+
