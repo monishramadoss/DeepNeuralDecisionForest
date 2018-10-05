@@ -41,14 +41,16 @@ def get_word_from_vec(vec, n=10):
 
 
 ################ Definition ######################### 
-DEPTH = 3  # Depth of a tree
-N_LEAF = 2 ** (DEPTH + 1)  # Number of leaf node
-N_LABEL = 10  # Number of classe s
-N_TREE = 10 # Number of trees (ensemble)
+DEPTH = 10  # Depth of a tree
+N_LABEL = 2  # Number of classe s
+N_TREE = 30 # Number of trees (ensemble)
 # network hyperparameters
 p_conv_keep = 0.8
 p_full_keep = 0.5
-    
+N_LEAF = 2 ** (DEPTH + 1)  # Number of leaf node
+
+#896 430 
+
 model = Forest(n_tree=N_TREE, tree_depth=DEPTH, n_in_feature=N_LEAF, tree_feature_rate=p_conv_keep, n_class=N_LABEL, jointly_training=True)
 model.cuda()
 optimizer = optim.RMSprop(model.parameters(), lr=.001) 
@@ -58,7 +60,7 @@ TEXT = data.Field(lower=True, include_lengths=True, batch_first=True)
 LABEL = data.Field(sequential=False)
 
 # make splits for data
-train, val, test = datasets.SST.splits(TEXT, LABEL, root='./.vector_cache')
+train, test = datasets.IMDB.splits(TEXT, LABEL, root='./.vector_cache')
 
 # build the vocabulary
 TEXT.build_vocab(train, vectors=glove)
@@ -69,21 +71,29 @@ train_iter, test_iter = data.BucketIterator.splits((train, test), batch_size=bat
 train_loader = train_iter
 test_loader = test_iter
 
+input = torch.zeros(batchSize, 1024)
 
 def train(epochs):
     for epoch in range(epochs):
         for i, dataTensor in enumerate(train_loader):  
             data = dataTensor.text[0]
             target = dataTensor.label.data
+            
             data  = torch.tensor(data, dtype=dtype, device=torch.device('cuda:0'))
-            target = torch.tensor(target, dtype=dtype, device=torch.device('cuda:0'))
+            target = torch.tensor(target, dtype=torch.long, device=torch.device('cuda:0'))
+            
+            input.new_tensor(data, device=torch.device('cuda:0'))
+
             optimizer.zero_grad()
-            output = model(data)
-            loss = F.nll_loss((output), target)
+            output = model(input)
+            try:
+                loss = F.nll_loss((output), target)
+            except:
+                pass
             loss.backward()
             optimizer.step()
-            if batch_idx % 50 == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(epoch, batch_idx * len(data), len(train_loader.dataset), 100. * batch_idx / len(train_loader), loss.data[0]))
+            if i % 50 == 0:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(epoch, i * len(data), len(train_loader.dataset), 100. * i / len(train_loader), loss.item()))
 
 def test():
     test_loss = 0

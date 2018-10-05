@@ -17,6 +17,7 @@ class Tree(nn.Module):
         self.n_class = n_class
         self.jointly_training = jointly_training
 
+        self.feature_Layer = nn.Linear(1024, n_in_feature)
         # used features in this tree
         n_used_feature = int(n_in_feature*used_feature_rate)
         onehot = np.eye(n_in_feature)
@@ -40,10 +41,11 @@ class Tree(nn.Module):
     def forward(self,x):
        
         self.feature_mask = self.feature_mask.cuda()
+        x = x.cuda()
 
-        feats = torch.mm(x, self.feature_mask) # ->[batch_size,n_used_feature]
+        feature_layer = self.feature_Layer(x)
+        feats = torch.mm(feature_layer, self.feature_mask) # ->[batch_size,n_used_feature]
         decision = self.decision(feats) # ->[batch_size,n_leaf]
-
         decision = torch.unsqueeze(decision,dim=2)
         decision_comp = 1-decision
         decision = torch.cat((decision,decision_comp),dim=2) # -> [batch_size,n_leaf,2]
