@@ -78,33 +78,39 @@ def train(epochs):
         for i, dataTensor in enumerate(train_loader):  
             data = dataTensor.text[0]
             target = dataTensor.label.data
-            
-            data  = torch.tensor(data, dtype=dtype, device=torch.device('cuda:0'))
-            target = torch.tensor(target, dtype=torch.long, device=torch.device('cuda:0'))
-            
+            target = torch.tensor(target, dtype=torch.long, device=GeneratorDevice)
             input.new_tensor(data, device=torch.device('cuda:0'))
-
             optimizer.zero_grad()
             output = model(input)
+            
             try:
                 loss = F.nll_loss((output), target)
+                loss.backward()
+                optimizer.step()
+                if i % 50 == 0:
+                    print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(epoch, i * len(data), len(train_loader.dataset), 100. * i / len(train_loader), loss.item()))
             except:
                 pass
-            loss.backward()
-            optimizer.step()
-            if i % 50 == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(epoch, i * len(data), len(train_loader.dataset), 100. * i / len(train_loader), loss.item()))
 
 def test():
     test_loss = 0
     correct = 0
-    for data, target in test_loader:
-        data, target = data.cuda(), target.cuda()
-        data, target = Variable(data, volatile=True), Variable(target)
-        output = model(data)
-        test_loss += F.nll_loss(output, target).data[0]
-        pred = output.data.max(1)[1] # get the index of the max log-probability
-        correct += pred.eq(target.data).cpu().sum()
+    for i, dataTensor in enumerate(test_loader):
+        data = dataTensor.text[0]
+        target = dataTensor.label.data
+
+        target = torch.tensor(target, dtype=dtype, device=GeneratorDevice)
+        input.new_tensor(data, device=GeneratorDevice)
+        output = model(input)
+
+        try:
+            test_loss += F.nll_loss(output, target).data[0]
+            pred = output.data.max(1)[1] # get the index of the max log-probability
+            correct += pred.eq(target.data).cpu().sum()
+        except:
+            pass
+
+
     test_loss = test_loss
     test_loss /= len(test_loader) # loss function already averages over batch size
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(test_loss, correct, len(test_loader.dataset), 100. * correct / len(test_loader.dataset)))
