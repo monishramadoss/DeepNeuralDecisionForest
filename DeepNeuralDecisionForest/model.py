@@ -1,4 +1,5 @@
-﻿# https://github.com/jingxil/Neural-Decision-Forests/blob/master/ndf.py
+﻿
+# https://github.com/jingxil/Neural-Decision-Forests/blob/master/ndf.py
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -17,7 +18,7 @@ class Tree(nn.Module):
         self.n_class = n_class
         self.jointly_training = jointly_training
 
-        self.feature_Layer = nn.Linear(1024, n_in_feature)
+        self.feature_Layer = nn.Linear(800, n_in_feature)
         # used features in this tree
         n_used_feature = int(n_in_feature*used_feature_rate)
         onehot = np.eye(n_in_feature)
@@ -39,11 +40,9 @@ class Tree(nn.Module):
                         ]))
 
     def forward(self,x):
-       
-        self.feature_mask = self.feature_mask.cuda()
         x = x.cuda()
-
-        feature_layer = self.feature_Layer(x)
+        self.feature_mask = self.feature_mask
+        feature_layer = self.feature_Layer(x).cuda()
         feats = torch.mm(feature_layer, self.feature_mask) # ->[batch_size,n_used_feature]
         decision = self.decision(feats) # ->[batch_size,n_leaf]
         decision = torch.unsqueeze(decision,dim=2)
@@ -58,7 +57,9 @@ class Tree(nn.Module):
         end_idx = 2
         for n_layer in range(0, self.depth):
             _mu = _mu.view(batch_size,-1,1).repeat(1,1,2)
-            _decision = decision[:, begin_idx:end_idx, :]  # -> [batch_size,2**n_layer,2]
+            # _decision = decision[:, begin_idx:end_idx, :]  # -> [batch_size,2**n_layer,2] #16,1,2
+            indices = torch.tensor([x for x in range(begin_idx, end_idx)]).cuda()
+            _decision = torch.index_select(decision, 1, indices)
             _mu = _mu*_decision # -> [batch_size,2**n_layer,2]
             begin_idx = end_idx
             end_idx = begin_idx + 2 ** (n_layer+1)
@@ -74,13 +75,7 @@ class Tree(nn.Module):
             return self.pi
 
     def cal_prob(self,mu,pi):
-        """
-        :param mu [batch_size,n_leaf]
-        :param pi [n_leaf,n_class]
-        :return: label probability [batch_size,n_class]
-        """
-        p = torch.mm(mu,pi)
-        return p
+        return torch.mm(mu, pi)
 
 
     def update_pi(self,new_pi):
