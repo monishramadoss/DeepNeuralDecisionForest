@@ -44,7 +44,7 @@ def get_word_from_vec(vec, n=10):
 ################ Definition ######################### 
 DEPTH = 10  # Depth of a tree
 N_LABEL = 2  # Number of classe s
-N_TREE = 100 # Number of trees (ensemble)
+N_TREE = 50 # Number of trees (ensemble)
 # network hyperparameters
 p_conv_keep = 0.8
 p_full_keep = 0.5
@@ -78,33 +78,24 @@ input = torch.zeros(batchSize, 800)
 
 def train(epochs):
 
-    dummy_input = torch.randn(1,800)
-    input_names = ['Request']
-    output_names = ['Response']
-           
-    #torch.onnx.export(model.cpu(), dummy_input, "DeepNeuralDecisionForest.onnx", input_names=input_names, output_names=output_names)
-
-
     for epoch in range(epochs):
         for i, dataTensor in enumerate(train_loader):  
+           
             data = dataTensor.text[0]
             target = dataTensor.label.data
             target = torch.tensor(target, dtype=torch.long, device=GeneratorDevice)
             input.new_tensor(data, device=torch.device('cuda:0'))
-            optimizer.zero_grad()
-            output = model(input)
-            try:
+            if(input.shape[0] == batchSize):
+
+                optimizer.zero_grad()
+                output = model(input)
                 loss = F.nll_loss((output), target)
                 loss.backward()
                 optimizer.step()
 
                 if i % 200 == 0:
                     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(epoch, i, len(train_loader)*batchSize, 100. * i / (len(train_loader)*batchSize), loss.item()))
-            except:
-                pass
-
-            test()
-        
+                    
 def test():
     test_loss = 0
     correct = 0
@@ -114,14 +105,10 @@ def test():
 
         target = torch.tensor(target, dtype=torch.long, device=GeneratorDevice)
         input.new_tensor(data, device=GeneratorDevice)
-        output = model(input)
-        try:
-            test_loss += F.nll_loss(output, target).data[0]
+        if(input.shape[0] == batchSize):
+            output = model(input)
             pred = output.data.max(1)[1] # get the index of the max log-probability
             correct += pred.eq(target.data).cpu().sum()
-        except:
-            pass
-
 
     test_loss = test_loss
     test_loss /= len(test_loader) # loss function already averages over batch size

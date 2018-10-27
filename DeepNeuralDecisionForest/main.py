@@ -43,7 +43,7 @@ parser.add_argument('-e',"--epochs", type=int,
                     required=False
                     )
 parser.add_argument('-bs',"--batchsize", type=int,
-                    default=16,
+                    default=64,
                     help="Size of Mini-Batch",
                     required=False
                     )

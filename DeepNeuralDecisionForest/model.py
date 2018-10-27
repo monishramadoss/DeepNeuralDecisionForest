@@ -10,6 +10,25 @@ import torch.nn.functional as F
 from functools import reduce
 
 
+class FeatureExtract(nn.Module):
+    def __init__(self):
+        super(FeatureExtract, self).__init__()
+
+        self.conv3 = nn.Conv2d(1, 3, (3, 300))
+        self.conv4 = nn.Conv2d(1, 4, (4, 300))
+        self.conv5 = nn.Conv2d(1, 5, (5, 300))
+        self.dropout = nn.Dropout(0.3)
+
+    def forward(self, x):
+        x = [F.relu(conv(x)).squeeze(3) for conv in [self.conv3, self.conv4, self.conv5]]
+        x = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x]
+        x = torch.cat(x, 1)
+        x = self.dropout(x)
+
+        return x
+
+
+
 class Tree(nn.Module):
     def __init__(self,depth,n_in_feature,used_feature_rate,n_class, jointly_training=True):
         super(Tree, self).__init__()
